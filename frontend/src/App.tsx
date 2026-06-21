@@ -14,7 +14,7 @@ function App() {
         <div className="flex h-dvh items-center justify-center gap-4 overflow-y-auto">
           <img src="/Side.jpg" alt="" className="hidden h-dvh w-1/4 object-cover lg:block" />
           <InputForm initialValue={state.initialInput} onSubmit={submit} />
-          <img src="/side2.jpg" alt="" className="hidden h-dvh w-1/4 object-cover lg:block" />
+          <img src="/Side.jpg" alt="" className="hidden h-dvh w-1/4 object-cover lg:block" />
         </div>
       )}
 
