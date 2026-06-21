@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .graph import planner_app
 from .models import TripRequest, TripResponse
 
-app = FastAPI(title="TourPlanner API", version="1.0.0")
+app = FastAPI(title="TripPilot API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

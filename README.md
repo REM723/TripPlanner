@@ -1,4 +1,4 @@
-# TourPlanner
+# TripPilot
 
 An AI-powered tour planner for Indian middle-class travelers. Given a budget, traveler
 count, trip length, and sightseeing preferences, it suggests a destination (if none is

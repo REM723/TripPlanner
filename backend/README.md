@@ -1,4 +1,4 @@
-# TourPlanner API
+# TripPilot API
 
 FastAPI backend wrapping the LangGraph travel-planning workflow (budget allocation, hotel recommendations via Groq LLM, itinerary generation).
 

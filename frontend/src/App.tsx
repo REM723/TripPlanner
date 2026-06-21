@@ -9,7 +9,10 @@ function App() {
   const { state, submit, confirmDestination, editInput, retry } = usePlannerMachine();
 
   return (
-    <div className="min-h-dvh">
+    <div
+      className="min-h-dvh bg-cover bg-center bg-fixed bg-blend-lighten"
+      style={{ backgroundImage: "url(/image.jpg)", backgroundColor: 'rgba(255,255,255,0.7)' }}
+    >
       {state.step === 'input' && (
         <div className="flex h-dvh items-center justify-center gap-4 overflow-y-auto">
           <img src="/Side.jpg" alt="" className="hidden h-dvh w-1/4 object-cover lg:block" />
