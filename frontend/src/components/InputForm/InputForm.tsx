@@ -109,7 +109,9 @@ export function InputForm({ initialValue, onSubmit }: InputFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-10">
+    <form onSubmit={handleSubmit} className="mx-auto flex max-w-2xl flex-col gap-4 rounded-lg bg-surface/90 px-4 py-6">
+      <img src="/Banner.png" alt="" className="w-full rounded-lg" />
+
       <div>
         <h1 className="text-2xl font-semibold text-ink">Plan your trip</h1>
         <p className="mt-1 text-ink-muted">

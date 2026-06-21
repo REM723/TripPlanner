@@ -30,13 +30,9 @@
 
 body {
   margin: 0;
+  background: #fff;
   color: var(--color-ink);
   font-family: var(--font-sans);
-  background-image: url('/image.jpg');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -47,9 +43,6 @@ body {
 }
 
 @media print {
-  body {
-    background-image: none;
-  }
   body * {
     visibility: hidden;
   }

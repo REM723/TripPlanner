@@ -9,10 +9,12 @@ function App() {
   const { state, submit, confirmDestination, editInput, retry } = usePlannerMachine();
 
   return (
-    <div className="min-h-dvh bg-surface/85">
+    <div className="min-h-dvh">
       {state.step === 'input' && (
-        <div className="flex min-h-dvh items-center justify-center">
+        <div className="flex h-dvh items-center justify-center gap-4 overflow-y-auto">
+          <img src="/Side.jpg" alt="" className="hidden h-dvh w-1/4 object-cover lg:block" />
           <InputForm initialValue={state.initialInput} onSubmit={submit} />
+          <img src="/side2.jpg" alt="" className="hidden h-dvh w-1/4 object-cover lg:block" />
         </div>
       )}
 
