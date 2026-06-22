@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 interface DestinationSuggesterProps {
   recommended: string;
   alternatives: string[];
@@ -12,6 +14,12 @@ export function DestinationSuggester({
   onChooseDifferent,
 }: DestinationSuggesterProps) {
   const others = alternatives.filter((d) => d !== recommended);
+  const [selected, setSelected] = useState(recommended);
+
+  function handleContinue() {
+    if (selected === recommended) onConfirm();
+    else onChooseDifferent(selected);
+  }
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-10">
@@ -23,10 +31,11 @@ export function DestinationSuggester({
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
-          onClick={onConfirm}
-          className="flex flex-col items-start gap-1 rounded-xl border-2 border-accent bg-accent-soft p-4 text-left transition-transform duration-150 ease-out active:scale-[0.98]"
+          onClick={() => setSelected(recommended)}
+          className={`flex flex-col items-start gap-1 rounded-xl border-2 p-4 text-left transition-transform duration-150 ease-out active:scale-[0.98] ${
+            selected === recommended ? 'border-accent bg-accent-soft' : 'border-border bg-surface-raised hover:border-accent/50'
+          }`}
         >
-          <span className="text-xs font-medium uppercase tracking-wide text-accent-strong">Recommended</span>
           <span className="text-lg font-semibold text-ink">{recommended}</span>
         </button>
 
@@ -34,10 +43,11 @@ export function DestinationSuggester({
           <button
             key={destination}
             type="button"
-            onClick={() => onChooseDifferent(destination)}
-            className="flex flex-col items-start gap-1 rounded-xl border border-border bg-surface-raised p-4 text-left transition-transform duration-150 ease-out hover:border-accent/50 active:scale-[0.98]"
+            onClick={() => setSelected(destination)}
+            className={`flex flex-col items-start gap-1 rounded-xl border-2 p-4 text-left transition-transform duration-150 ease-out active:scale-[0.98] ${
+              selected === destination ? 'border-accent bg-accent-soft' : 'border-border bg-surface-raised hover:border-accent/50'
+            }`}
           >
-            <span className="text-xs font-medium text-ink-muted">Alternative</span>
             <span className="text-lg font-semibold text-ink">{destination}</span>
           </button>
         ))}
@@ -45,10 +55,10 @@ export function DestinationSuggester({
 
       <button
         type="button"
-        onClick={onConfirm}
+        onClick={handleContinue}
         className="self-start rounded-lg bg-accent px-4 py-2.5 font-medium text-white transition-[transform,background-color] duration-150 ease-out hover:bg-accent-strong active:scale-[0.98]"
       >
-        Continue with {recommended}
+        Continue
       </button>
     </div>
   );
