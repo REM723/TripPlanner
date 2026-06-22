@@ -171,6 +171,7 @@ hotel_prompt = ChatPromptTemplate.from_messages(
         Accommodation Budget: Rs.{accommodation_budget}
         Number of Days: {days}
         Language: {language}
+        {feedback}
         """,
         ),
     ]
@@ -215,6 +216,7 @@ restaurant_prompt = ChatPromptTemplate.from_messages(
         Adults: {adults}
         Children: {children}
         Language: {language}
+        {feedback}
         """,
         ),
     ]
@@ -313,7 +315,7 @@ def feasibility_router(state: PlannerState) -> str:
     return state["budget_status"]
 
 
-def select_hotels(state: PlannerState) -> PlannerState:
+def _select_hotels(state: PlannerState, feedback: str = "") -> list:
     llm = get_llm()
     accommodation_budget = state["cost_breakdown"].get("accommodation", 5000)
 
@@ -324,6 +326,7 @@ def select_hotels(state: PlannerState) -> PlannerState:
             "accommodation_budget": accommodation_budget,
             "days": state["days"],
             "language": state.get("language") or "English",
+            "feedback": feedback,
         }
     )
 
@@ -331,9 +334,9 @@ def select_hotels(state: PlannerState) -> PlannerState:
     raw = re.sub(r"```json|```", "", response.content.strip()).strip()
 
     try:
-        hotels = json.loads(raw)
+        return json.loads(raw)
     except json.JSONDecodeError:
-        hotels = [
+        return [
             {
                 "name": raw,
                 "type": state["hotel_type"],
@@ -343,10 +346,12 @@ def select_hotels(state: PlannerState) -> PlannerState:
             }
         ]
 
-    return {**state, "hotels": hotels}
+
+def select_hotels(state: PlannerState) -> PlannerState:
+    return {**state, "hotels": _select_hotels(state)}
 
 
-def select_restaurants(state: PlannerState) -> PlannerState:
+def _select_restaurants(state: PlannerState, feedback: str = "") -> list:
     llm = get_llm()
     food_budget = state["cost_breakdown"].get("food", 3000)
 
@@ -359,6 +364,7 @@ def select_restaurants(state: PlannerState) -> PlannerState:
             "adults": state["adults"],
             "children": state["children"],
             "language": state.get("language") or "English",
+            "feedback": feedback,
         }
     )
 
@@ -366,9 +372,9 @@ def select_restaurants(state: PlannerState) -> PlannerState:
     raw = re.sub(r"```json|```", "", response.content.strip()).strip()
 
     try:
-        restaurants = json.loads(raw)
+        return json.loads(raw)
     except json.JSONDecodeError:
-        restaurants = [
+        return [
             {
                 "name": raw,
                 "cost_for_two_inr": 0,
@@ -379,7 +385,73 @@ def select_restaurants(state: PlannerState) -> PlannerState:
             }
         ]
 
-    return {**state, "restaurants": restaurants}
+
+def select_restaurants(state: PlannerState) -> PlannerState:
+    return {**state, "restaurants": _select_restaurants(state)}
+
+
+def _cheapest(items: list, key: str) -> Optional[float]:
+    prices = [item[key] for item in items if isinstance(item.get(key), (int, float))]
+    return min(prices) if prices else None
+
+
+def estimate_actual_cost(state: PlannerState) -> dict:
+    """Best-effort actual cost from the cheapest generated hotel/restaurant (spec §6.1)."""
+    cost_breakdown = state["cost_breakdown"]
+    days = state["days"]
+    people = state["adults"] + state["children"]
+
+    cheapest_hotel = _cheapest(state["hotels"], "price_per_night")
+    accommodation_actual = cheapest_hotel * days if cheapest_hotel is not None else cost_breakdown["accommodation"]
+
+    cheapest_meal = _cheapest(state["restaurants"], "cost_for_two_inr")
+    food_actual = cheapest_meal / 2 * people * 3 * days if cheapest_meal is not None else cost_breakdown["food"]
+
+    total_actual = (
+        accommodation_actual + food_actual + cost_breakdown["transport"] + cost_breakdown["attractions"] + cost_breakdown["buffer"]
+    )
+
+    return {
+        "accommodation_actual": round(accommodation_actual),
+        "food_actual": round(food_actual),
+        "total_actual": round(total_actual),
+    }
+
+
+def validate_costs(state: PlannerState) -> PlannerState:
+    low, high = state["cost_breakdown"]["target_range_inr"]
+    actual = estimate_actual_cost(state)
+
+    if actual["total_actual"] > high:
+        # ponytail: one corrective retry with the overage as feedback, then accept best-effort
+        feedback = (
+            f"Your previous suggestions came out around Rs.{actual['total_actual']} total, "
+            f"which is over this traveler's Rs.{high} budget ceiling. Suggest cheaper options."
+        )
+        hotels = _select_hotels(state, feedback)
+        restaurants = _select_restaurants(state, feedback)
+        state = {**state, "hotels": hotels, "restaurants": restaurants}
+        actual = estimate_actual_cost(state)
+
+    cost_breakdown = {**state["cost_breakdown"], **actual}
+
+    if actual["total_actual"] > high:
+        return {
+            **state,
+            "cost_breakdown": cost_breakdown,
+            "budget_status": "too_high",
+            "budget_message": (
+                f"The hotels and restaurants available for {state.get('destination')} come to roughly "
+                f"Rs.{actual['total_actual']} for this trip, above your Rs.{state['budget']} budget. "
+                "Lower the budget or upgrade the experience for better-matched options."
+            ),
+        }
+
+    return {**state, "cost_breakdown": cost_breakdown}
+
+
+def cost_validation_router(state: PlannerState) -> str:
+    return state["budget_status"]
 
 
 def select_attractions(state: PlannerState) -> PlannerState:
@@ -490,6 +562,7 @@ def build_workflow():
     workflow.add_node("budget_allocator", budget_allocator)
     workflow.add_node("select_hotels", select_hotels)
     workflow.add_node("select_restaurants", select_restaurants)
+    workflow.add_node("validate_costs", validate_costs)
     workflow.add_node("select_attractions", select_attractions)
     workflow.add_node("add_extras", add_extras)
     workflow.add_node("fetch_weather", fetch_weather)
@@ -520,7 +593,15 @@ def build_workflow():
     )
     workflow.add_edge("budget_allocator", "select_hotels")
     workflow.add_edge("select_hotels", "select_restaurants")
-    workflow.add_edge("select_restaurants", "select_attractions")
+    workflow.add_edge("select_restaurants", "validate_costs")
+    workflow.add_conditional_edges(
+        "validate_costs",
+        cost_validation_router,
+        {
+            "too_high": END,
+            "feasible": "select_attractions",
+        },
+    )
     workflow.add_edge("select_attractions", "add_extras")
     workflow.add_edge("add_extras", "fetch_weather")
     workflow.add_edge("fetch_weather", "assemble_itinerary")
